@@ -1,0 +1,29 @@
+groups:
+  - name: ai_automation_doctor_alerts
+    rules:
+      - alert: HighIncidentRate
+        expr: ai_automation_doctor_active_incidents > 5
+        for: 2m
+        labels:
+          severity: critical
+        annotations:
+          summary: "Automation incident rate elevated"
+          description: "Active incidents in automation fleet exceeded 5 for more than 2 minutes."
+
+      - alert: LowHealthScore
+        expr: ai_automation_doctor_workflow_health < 70
+        for: 5m
+        labels:
+          severity: warning
+        annotations:
+          summary: "Fleet health score degraded"
+          description: "Calculated automation health score dropped below 70%."
+
+      - alert: LowRecoverySuccessRatio
+        expr: ai_automation_doctor_recovery_success_ratio < 85
+        for: 10m
+        labels:
+          severity: warning
+        annotations:
+          summary: "Recovery success ratio degraded"
+          description: "Autonomous recovery success percentage fell below 85%."

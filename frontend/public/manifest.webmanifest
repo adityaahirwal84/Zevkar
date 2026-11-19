@@ -1,0 +1,17 @@
+{
+  "name": "Zevkar AI — Automation Monitoring, Diagnosis & Recovery",
+  "short_name": "Zevkar AI",
+  "description": "AI-powered automation monitoring, diagnosis and recovery platform.",
+  "start_url": "/",
+  "display": "standalone",
+  "background_color": "#1B180D",
+  "theme_color": "#1B180D",
+  "icons": [
+    {
+      "src": "/favicon.svg",
+      "sizes": "any",
+      "type": "image/svg+xml",
+      "purpose": "any"
+    }
+  ]
+}

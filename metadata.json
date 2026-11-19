@@ -1,0 +1,8 @@
+{
+  "name": "DeltaAI",
+  "description": "DeltaAI is an AI-powered Automation Intelligence Platform that helps businesses monitor their automations, detect workflow failures, understand root causes, diagnose incidents, and recover operations intelligently.",
+  "requestFramePermissions": [],
+  "majorCapabilities": [
+    "MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"
+  ]
+}

@@ -1,0 +1,15 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1200" height="630" viewBox="0 0 1200 630" fill="none">
+  <rect width="1200" height="630" fill="#1B180D" />
+  <rect x="36" y="36" width="1128" height="558" rx="24" fill="#191B1C" stroke="#2E2D26" stroke-width="2" />
+  <rect x="88" y="88" width="84" height="84" rx="16" fill="#1B180D" stroke="#2E2D26" stroke-width="2" />
+  <path d="M109 112H151L109 148H151" stroke="#E8E3D8" stroke-width="5.5" stroke-linecap="round" stroke-linejoin="round" />
+  <circle cx="151" cy="112" r="5" fill="#C52A18" />
+  <circle cx="109" cy="148" r="5" fill="#A51C0B" />
+  <text x="194" y="144" fill="#E8E3D8" font-family="system-ui, -apple-system, sans-serif" font-size="42" font-weight="800">Zevkar <tspan fill="#C52A18">AI</tspan></text>
+  <text x="88" y="250" fill="#C52A18" font-family="system-ui, -apple-system, sans-serif" font-size="18" font-weight="700" letter-spacing="2.5">AI-POWERED AUTOMATION MONITORING, DIAGNOSIS &amp; RECOVERY</text>
+  <text x="88" y="325" fill="#E8E3D8" font-family="system-ui, -apple-system, sans-serif" font-size="54" font-weight="800">Keep Business Automations</text>
+  <text x="88" y="392" fill="#E8E3D8" font-family="system-ui, -apple-system, sans-serif" font-size="54" font-weight="800">Running with Zevkar AI.</text>
+  <text x="88" y="464" fill="#A69B88" font-family="system-ui, -apple-system, sans-serif" font-size="25">Monitor workflows, diagnose failures, and recover operations safely across n8n, webhooks, Python &amp; FastAPI.</text>
+  <rect x="88" y="510" width="180" height="44" rx="8" fill="#A51C0B" />
+  <text x="122" y="538" fill="#E8E3D8" font-family="monospace" font-size="18" font-weight="700">Zevkar AI</text>
+</svg>

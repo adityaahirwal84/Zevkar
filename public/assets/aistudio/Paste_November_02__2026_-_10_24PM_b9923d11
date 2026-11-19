@@ -1,0 +1,1279 @@
+# MASTER BUILD INSTRUCTION
+# AI AUTOMATION DOCTOR — PRODUCTION-GRADE MULTI-TENANT AI SAAS
+
+Act as a Principal Software Architect, Senior Python Backend Engineer, Senior Next.js Frontend Engineer, AI/ML Engineer, Database Architect, DevOps Engineer, Security Engineer, QA Engineer, and SaaS Product Engineer.
+
+Your responsibility is to design and implement a complete, production-oriented, multi-tenant SaaS application called:
+
+AI AUTOMATION DOCTOR
+
+Tagline: Your AI Doctor for Business Automations.
+
+You must follow every architectural and technology requirement in this document.
+
+This is not a UI prototype, static dashboard, mock application, or frontend-only project.
+
+Build a real full-stack application with working APIs, database persistence, authentication, integrations, background workers, AI diagnosis, monitoring, recovery workflows, and deployment configuration.
+
+==================================================
+1. NON-NEGOTIABLE ARCHITECTURE
+==================================================
+
+The following technology stack is STRICTLY LOCKED.
+
+FRONTEND:
+- Next.js 15+ (App Router)
+- React
+- TypeScript
+- Tailwind CSS
+- shadcn/ui
+- TanStack Query for server-state management
+- React Hook Form
+- Zod for frontend validation
+- Recharts for dashboard visualizations
+
+BACKEND:
+- Python 3.12+
+- FastAPI
+- Pydantic v2
+- SQLAlchemy 2.0 (async)
+- Alembic for database migrations
+- Uvicorn
+- HTTPX for external API communication
+
+DATABASE:
+- PostgreSQL 16+
+- UUID primary keys
+- JSONB for flexible structured metadata
+- Proper relational constraints
+- Database indexes
+- Transaction management
+
+CACHE AND BACKGROUND PROCESSING:
+- Redis
+- Celery
+- Celery Beat for scheduled tasks
+
+AI:
+- Google Gemini API
+- Structured JSON responses using Pydantic schemas
+- AI-powered root cause analysis
+- AI-generated troubleshooting recommendations
+
+MONITORING AND OBSERVABILITY:
+- Prometheus
+- Grafana
+- Python structured logging
+- OpenTelemetry instrumentation where needed
+- FastAPI metrics endpoint
+- Application health checks
+
+TESTING:
+- Pytest
+- HTTPX test client
+- Pytest-asyncio
+- Playwright for frontend end-to-end testing
+
+DEPLOYMENT:
+- Docker
+- Docker Compose
+- Separate frontend, backend, worker and scheduler services
+- Environment-based configuration
+- Production-ready Dockerfiles
+- PostgreSQL and Redis as separate services
+
+Do not introduce additional frameworks or infrastructure unless absolutely necessary and explicitly approved.
+
+==================================================
+2. STRICTLY PROHIBITED TECHNOLOGIES
+==================================================
+
+DO NOT use:
+
+- Node.js or Express.js as the application backend.
+- Firebase.
+- Supabase.
+- MongoDB.
+- Prisma.
+- Drizzle ORM.
+- Mongoose.
+- Convex.
+- Appwrite.
+- PocketBase.
+- SQLite as the production database.
+- In-memory JavaScript objects as persistent storage.
+- LocalStorage as a replacement for backend persistence.
+- Fake APIs.
+- Hardcoded demo users.
+- Mock authentication.
+- Simulated database connections.
+- Fake AI diagnosis.
+- Fake workflow integrations.
+- Fake recovery operations.
+
+Node.js is permitted ONLY as the frontend build/runtime environment required by Next.js.
+
+All business logic, authentication, database access, integrations, AI diagnosis, monitoring, and recovery operations must be implemented in Python FastAPI.
+
+Do not silently replace any required technology with an alternative.
+
+If a dependency is unavailable in the current environment, explain the limitation instead of changing the architecture.
+
+==================================================
+3. PRODUCT VISION
+==================================================
+
+AI Automation Doctor helps businesses monitor and protect their business automations.
+
+Target platforms:
+
+1. n8n
+2. Zapier
+3. Make.com
+4. Custom Python automation scripts
+5. Custom FastAPI services
+6. Custom AI agents and webhook-based workflows
+
+The platform must:
+
+- Detect automation failures.
+- Collect execution information.
+- Identify root causes.
+- Explain technical problems in simple language.
+- Recommend corrective actions.
+- Retry failed processes safely.
+- Require human approval for risky recovery operations.
+- Track business impact.
+- Maintain an audit history.
+
+Primary business problems:
+
+- Lost leads.
+- Failed payments.
+- Missing notifications.
+- Failed CRM synchronization.
+- Broken AI agent pipelines.
+- API rate limits.
+- Expired API credentials.
+- Database connection failures.
+- Invalid payloads.
+- Failed webhook delivery.
+
+==================================================
+4. APPLICATION MODULES
+==================================================
+
+Implement the following modules.
+
+A. PUBLIC LANDING PAGE
+
+Create a professional SaaS landing page containing:
+
+- Hero section.
+- Product explanation.
+- How it works.
+- Supported integrations.
+- Key features.
+- Pricing plans.
+- Security information.
+- FAQ.
+- Contact section.
+- Login and signup navigation.
+
+B. AUTHENTICATION AND USER MANAGEMENT
+
+Implement real authentication.
+
+Features:
+
+- Signup.
+- Login.
+- Logout.
+- Email verification.
+- Forgot password.
+- Password reset.
+- Secure password hashing using Argon2.
+- Access JWT.
+- Refresh token rotation.
+- Secure HTTP-only cookies.
+- Session management.
+- User profile.
+- Account settings.
+- Organization membership.
+
+Roles:
+
+- Super Admin.
+- Organization Owner.
+- Admin.
+- Developer.
+- Viewer.
+
+Implement role-based access control.
+
+Never store plaintext passwords or expose secrets to the frontend.
+
+C. MULTI-TENANT ORGANIZATION MANAGEMENT
+
+Every customer organization must have isolated data.
+
+Features:
+
+- Create organization.
+- Update organization.
+- Invite members.
+- Remove members.
+- Change roles.
+- Manage organization settings.
+- Organization activity logs.
+- Team management.
+
+Every tenant-owned database record must have appropriate organization ownership.
+
+Never trust organization_id supplied by the frontend without authorization checks.
+
+Implement tenant isolation at the backend service and database query layers.
+
+D. MAIN DASHBOARD
+
+Create a real-time operational dashboard.
+
+Display:
+
+- Total workflows.
+- Healthy workflows.
+- Failed workflows.
+- Active incidents.
+- Critical incidents.
+- Pending recovery approvals.
+- Successful recoveries.
+- Failed recoveries.
+- Automation uptime.
+- Failure rate.
+- Mean time to recovery.
+- Recent execution history.
+- Business impact estimates.
+
+All metrics must come from actual PostgreSQL records and monitoring data.
+
+Do not use hardcoded dashboard statistics.
+
+E. WORKFLOW MANAGEMENT
+
+Implement:
+
+- Create workflow.
+- Edit workflow.
+- Delete workflow.
+- View workflow details.
+- Connect integration.
+- Enable/disable monitoring.
+- Configure monitoring interval.
+- Configure failure thresholds.
+- Configure retry policy.
+- Configure alert preferences.
+
+Workflow properties:
+
+- Workflow name.
+- Organization.
+- Platform.
+- External workflow ID.
+- Workflow endpoint.
+- Integration reference.
+- Monitoring status.
+- Last execution.
+- Last successful execution.
+- Failure count.
+- Retry configuration.
+- Health status.
+
+F. INTEGRATION MANAGEMENT
+
+Build a modular integration architecture.
+
+Integrations:
+
+1. n8n
+2. Zapier
+3. Make.com
+4. Custom Webhook
+5. Custom Python/FastAPI automation
+
+Use independent integration adapters.
+
+Each adapter must implement a clearly defined interface for:
+
+- Authentication.
+- Connection validation.
+- Execution event ingestion.
+- Execution status retrieval where supported.
+- Retry capability where supported.
+- Error normalization.
+
+IMPORTANT:
+
+Do not pretend all providers expose identical APIs.
+
+Use official documented APIs and webhooks.
+
+Implement only capabilities actually supported by each provider.
+
+If an integration requires user credentials, request them securely.
+
+Store integration secrets encrypted at rest.
+
+Never expose API keys in frontend responses or logs.
+
+G. WEBHOOK INGESTION ENGINE
+
+Build a reliable webhook ingestion system.
+
+Features:
+
+- Unique webhook endpoints.
+- Provider identification.
+- Request signature verification where supported.
+- Payload validation.
+- Event normalization.
+- Idempotency keys.
+- Duplicate event detection.
+- Event persistence.
+- Background processing.
+- Failure handling.
+- Retry-safe processing.
+
+Acknowledge valid events promptly and process expensive operations asynchronously through Celery.
+
+Do not lose events when workers are unavailable.
+
+Use durable database persistence and an appropriate transactional event-processing strategy.
+
+H. AUTOMATION MONITORING ENGINE
+
+Create a Python monitoring engine.
+
+Responsibilities:
+
+- Monitor registered workflows.
+- Receive execution webhooks.
+- Run scheduled health checks.
+- Detect failed executions.
+- Detect missing expected heartbeats.
+- Detect timeout conditions.
+- Identify repeated failures.
+- Track workflow health.
+- Generate incidents.
+
+Use Celery workers and Celery Beat.
+
+Avoid unnecessarily frequent polling.
+
+Use configurable monitoring intervals and provider rate limits.
+
+Do not claim to monitor workflow executions that the integration cannot actually access.
+
+I. INCIDENT MANAGEMENT
+
+Implement a complete incident lifecycle.
+
+Statuses:
+
+- Detected.
+- Investigating.
+- Diagnosed.
+- Awaiting Approval.
+- Recovering.
+- Resolved.
+- Failed.
+- Dismissed.
+
+Incident details:
+
+- Incident ID.
+- Workflow.
+- Organization.
+- Failure category.
+- Severity.
+- Error message.
+- Stack trace where available.
+- Execution ID.
+- First occurrence.
+- Last occurrence.
+- Number of occurrences.
+- AI diagnosis.
+- Suggested fix.
+- Recovery history.
+- Resolution timestamp.
+
+Severity:
+
+- Critical.
+- High.
+- Medium.
+- Low.
+
+J. GEMINI AI DIAGNOSIS ENGINE
+
+Use Google Gemini API through the Python backend only.
+
+The AI diagnosis engine must:
+
+1. Receive structured incident information.
+2. Analyze execution logs and error messages.
+3. Classify the failure.
+4. Identify the likely root cause.
+5. Explain the problem in simple English.
+6. Recommend corrective actions.
+7. Estimate severity.
+8. Suggest safe recovery options.
+9. Return structured JSON.
+10. Store diagnosis results in PostgreSQL.
+
+Example failure categories:
+
+- Authentication failure.
+- API rate limit.
+- Network timeout.
+- Invalid payload.
+- Database error.
+- Missing configuration.
+- Permission error.
+- Application exception.
+- Unknown error.
+
+Use Pydantic validation for model output.
+
+Implement:
+
+- API timeout handling.
+- Limited retries.
+- Rate-limit handling.
+- Token usage tracking.
+- Error handling.
+- Diagnosis history.
+
+Never execute arbitrary code generated by an LLM.
+
+Treat execution logs and webhook payloads as untrusted input.
+
+AI must recommend actions, not bypass authorization or safety checks.
+
+K. RECOVERY ENGINE
+
+This is one of the most important product modules.
+
+Build a controlled recovery engine.
+
+Capabilities:
+
+- Retry failed executions where supported.
+- Retry with exponential backoff.
+- Configure maximum attempts.
+- Prevent duplicate retries.
+- Use idempotency keys.
+- Maintain recovery history.
+- Track recovery status.
+- Record API responses.
+- Stop repeated failed retries.
+
+Recovery approval policy:
+
+LOW RISK:
+Allow automatic recovery only when explicitly configured by the organization.
+
+MEDIUM RISK:
+Require configurable approval policies.
+
+HIGH RISK:
+Require human approval.
+
+CRITICAL:
+Require explicit authorization and additional safeguards.
+
+Never execute destructive or financially sensitive operations automatically.
+
+Implement:
+
+- Approval dashboard.
+- Approve recovery.
+- Reject recovery.
+- Recovery execution.
+- Recovery logs.
+- Retry history.
+- Manual intervention.
+
+A successful recovery must be verified against actual provider execution status or an independently confirmed success event.
+
+Never mark an incident resolved merely because a retry request was sent.
+
+L. APPROVAL MANAGEMENT
+
+Create an approval workflow.
+
+Features:
+
+- Pending approvals.
+- Approval details.
+- Incident context.
+- AI recommendations.
+- Risk explanation.
+- Approve action.
+- Reject action.
+- Approver identity.
+- Approval timestamp.
+- Audit history.
+
+Only authorized organization members can approve actions.
+
+M. NOTIFICATION SYSTEM
+
+Implement notifications for:
+
+- New critical incidents.
+- Failed workflows.
+- AI diagnosis completed.
+- Recovery approval required.
+- Recovery successful.
+- Recovery failed.
+
+Support:
+
+- In-app notifications.
+- Email notifications.
+
+Use Celery for asynchronous email delivery.
+
+Keep notification preferences configurable.
+
+N. AUDIT LOGGING
+
+Record important security and operational actions:
+
+- Login.
+- Logout.
+- Password reset.
+- Organization creation.
+- Member invitations.
+- Role changes.
+- Integration creation.
+- Integration updates.
+- Workflow changes.
+- Recovery approvals.
+- Recovery execution.
+- Configuration changes.
+
+Audit records must identify the actor, organization, action, timestamp and relevant metadata.
+
+Prevent ordinary users from modifying audit history.
+
+O. BILLING AND SUBSCRIPTION MANAGEMENT
+
+Prepare SaaS subscription architecture.
+
+Plans:
+
+- Free.
+- Starter.
+- Growth.
+- Enterprise.
+
+Implement:
+
+- Subscription records.
+- Plan limits.
+- Workflow limits.
+- Execution monitoring limits.
+- AI diagnosis usage.
+- Monthly usage tracking.
+- Subscription status.
+- Billing history.
+
+Keep payment provider integration isolated behind a billing service.
+
+Do not simulate successful payments.
+
+Only activate paid subscriptions after verified payment confirmation.
+
+If payment credentials are unavailable, provide a clearly identified billing integration placeholder rather than fake payment functionality.
+
+P. ADMIN PANEL
+
+Implement platform-level administration.
+
+Features:
+
+- Organization management.
+- User management.
+- Subscription overview.
+- Platform usage.
+- Incident overview.
+- Integration health.
+- System health.
+- Audit logs.
+
+Platform administrators must be separate from ordinary organization roles.
+
+==================================================
+5. DATABASE ARCHITECTURE
+==================================================
+
+Use PostgreSQL as the ONLY production relational database.
+
+Use SQLAlchemy 2.0 async and Alembic.
+
+Design normalized relational tables.
+
+Minimum entities:
+
+- users
+- organizations
+- organization_members
+- invitations
+- refresh_tokens
+- sessions
+- workflows
+- integrations
+- integration_credentials
+- webhook_events
+- executions
+- incidents
+- ai_diagnoses
+- recovery_attempts
+- recovery_approvals
+- notifications
+- notification_preferences
+- audit_logs
+- subscription_plans
+- subscriptions
+- usage_records
+
+Requirements:
+
+- UUID primary keys.
+- Foreign keys.
+- Unique constraints.
+- Proper indexes.
+- Created and updated timestamps.
+- Organization ownership.
+- Soft deletion where appropriate.
+- Transaction handling.
+- Alembic migrations.
+- Connection pooling.
+
+Never create tables only in application memory.
+
+Never use automatic schema creation as a substitute for migrations in production.
+
+==================================================
+6. REDIS AND CELERY ARCHITECTURE
+==================================================
+
+Redis is required for:
+
+- Celery message broker.
+- Celery result backend where needed.
+- Caching.
+- Distributed coordination.
+- Rate limiting support.
+
+Celery workers must process:
+
+- Webhook events.
+- Workflow health checks.
+- AI diagnosis.
+- Recovery execution.
+- Email notifications.
+- Scheduled monitoring.
+
+Celery Beat must schedule periodic monitoring jobs.
+
+Requirements:
+
+- Task idempotency.
+- Retry limits.
+- Exponential backoff.
+- Task timeouts.
+- Failure handling.
+- Dead-letter or persistent failed-task handling.
+- Structured task logging.
+
+Never use FastAPI BackgroundTasks as a replacement for Celery in long-running or durable business-critical tasks.
+
+==================================================
+7. PROMETHEUS AND GRAFANA
+==================================================
+
+Implement real application observability.
+
+Prometheus must collect:
+
+- HTTP request count.
+- HTTP request latency.
+- HTTP error rate.
+- API availability.
+- Active incidents.
+- Workflow failure counts.
+- Recovery success/failure counts.
+- Celery queue metrics.
+- Worker health.
+- Database connectivity.
+- Redis connectivity.
+
+Expose a protected or appropriately network-restricted metrics endpoint.
+
+Grafana must include dashboards for:
+
+1. API Health.
+2. Workflow Monitoring.
+3. Incident Overview.
+4. Recovery Performance.
+5. Background Worker Health.
+6. Infrastructure Health.
+
+Add configurable alert rules for:
+
+- High API error rate.
+- High latency.
+- Worker unavailability.
+- Queue backlog.
+- Database connection failure.
+- Repeated workflow failures.
+
+Do not display fabricated metrics.
+
+==================================================
+8. FRONTEND DESIGN REQUIREMENTS
+==================================================
+
+Create a polished, professional enterprise SaaS interface.
+
+Visual direction:
+
+- Dark navy dashboard.
+- Professional typography.
+- Clean layouts.
+- Consistent spacing.
+- Responsive design.
+- Accessible components.
+- Clear operational status indicators.
+
+Main navigation:
+
+OVERVIEW
+- Dashboard
+- Incidents
+- AI Diagnosis
+- Recovery Center
+- Approvals
+
+ASSETS & INTEGRATIONS
+- Workflows
+- Integrations
+- Clients / Organizations
+
+MANAGEMENT
+- Notifications
+- Team
+- Usage & Billing
+- Audit Logs
+- Settings
+
+Also create:
+
+- Public landing page.
+- Signup and login.
+- Onboarding wizard.
+- Empty states.
+- Loading states.
+- Error states.
+- Confirmation dialogs.
+- Toast notifications.
+- Pagination.
+- Search and filtering.
+
+All dashboard data must come from FastAPI endpoints.
+
+Do not implement business logic directly in React components.
+
+Use typed API clients and centralized authentication handling.
+
+==================================================
+9. FASTAPI API ARCHITECTURE
+==================================================
+
+Use versioned REST APIs:
+
+/api/v1/auth
+/api/v1/users
+/api/v1/organizations
+/api/v1/members
+/api/v1/workflows
+/api/v1/integrations
+/api/v1/webhooks
+/api/v1/executions
+/api/v1/incidents
+/api/v1/diagnoses
+/api/v1/recoveries
+/api/v1/approvals
+/api/v1/notifications
+/api/v1/billing
+/api/v1/usage
+/api/v1/audit-logs
+/api/v1/admin
+
+Additional endpoints:
+
+/health
+/health/ready
+/metrics
+
+Requirements:
+
+- Pydantic request/response schemas.
+- Consistent error responses.
+- Authentication dependencies.
+- Role authorization.
+- Pagination.
+- Filtering.
+- Sorting.
+- API documentation.
+- Rate limiting.
+- Input validation.
+
+Do not expose internal exceptions or secrets in API responses.
+
+==================================================
+10. REQUIRED PROJECT STRUCTURE
+==================================================
+
+Create a clean monorepo:
+
+ai-automation-doctor/
+│
+├── frontend/
+│   ├── app/
+│   ├── components/
+│   ├── features/
+│   ├── hooks/
+│   ├── lib/
+│   ├── services/
+│   ├── types/
+│   ├── public/
+│   ├── tests/
+│   ├── Dockerfile
+│   └── package.json
+│
+├── backend/
+│   ├── app/
+│   │   ├── api/
+│   │   │   └── v1/
+│   │   ├── core/
+│   │   ├── models/
+│   │   ├── schemas/
+│   │   ├── repositories/
+│   │   ├── services/
+│   │   ├── integrations/
+│   │   ├── monitoring/
+│   │   ├── ai/
+│   │   ├── recovery/
+│   │   ├── workers/
+│   │   └── main.py
+│   ├── migrations/
+│   ├── tests/
+│   ├── requirements.txt
+│   └── Dockerfile
+│
+├── infrastructure/
+│   ├── prometheus/
+│   └── grafana/
+│
+├── docker-compose.yml
+├── .env.example
+├── .gitignore
+├── README.md
+└── ARCHITECTURE.md
+
+Keep the project modular and maintainable.
+
+Do not place the entire backend in a single Python file.
+
+==================================================
+11. SECURITY REQUIREMENTS
+==================================================
+
+Implement:
+
+- Argon2 password hashing.
+- JWT authentication.
+- Refresh token rotation.
+- Secure cookies.
+- RBAC.
+- Tenant isolation.
+- Input validation.
+- CORS restrictions.
+- CSRF protection where cookie authentication requires it.
+- Rate limiting.
+- Secret encryption.
+- Webhook signature verification where supported.
+- SQL injection protection.
+- Secure error handling.
+- Audit logging.
+- HTTPS-ready configuration.
+
+Never:
+
+- Hardcode credentials.
+- Commit secrets.
+- Return API keys to frontend.
+- Log passwords or tokens.
+- Trust client-provided organization IDs.
+- Execute arbitrary AI-generated code.
+- Allow unauthorized recovery execution.
+
+Treat every external webhook and provider response as untrusted input.
+
+==================================================
+12. PERFORMANCE AND RELIABILITY
+==================================================
+
+Design for:
+
+- Asynchronous API operations.
+- Database connection pooling.
+- Indexed database queries.
+- Redis caching where beneficial.
+- Background task processing.
+- Paginated API responses.
+- Bounded concurrency.
+- Provider rate limits.
+- Timeouts.
+- Retry policies.
+- Idempotent operations.
+- Graceful shutdown.
+- Health checks.
+
+Do not add Kubernetes, Kafka, Elasticsearch, microservices, or additional databases at this stage.
+
+Use a modular monolith with separate worker processes.
+
+The architecture should remain simple enough for a small engineering team to maintain while supporting future growth.
+
+==================================================
+13. TESTING REQUIREMENTS
+==================================================
+
+Write actual executable tests.
+
+BACKEND TESTS:
+- Signup.
+- Login.
+- Token refresh.
+- Unauthorized access.
+- RBAC.
+- Tenant isolation.
+- Workflow CRUD.
+- Integration configuration.
+- Webhook validation.
+- Duplicate event handling.
+- Incident creation.
+- AI diagnosis validation.
+- Recovery approval.
+- Recovery execution.
+- Audit logging.
+
+FRONTEND TESTS:
+- Signup and login flows.
+- Dashboard loading.
+- Workflow creation.
+- Integration setup.
+- Incident details.
+- Approval flows.
+- Error states.
+- Responsive layout.
+
+INTEGRATION TESTS:
+- PostgreSQL persistence.
+- Redis connectivity.
+- Celery task execution.
+- Gemini API connectivity.
+- Provider adapter behavior.
+
+END-TO-END TESTS:
+- User signup.
+- Organization creation.
+- Workflow registration.
+- Failure event ingestion.
+- Incident generation.
+- AI diagnosis.
+- Approval.
+- Recovery.
+- Verified resolution.
+
+Use mocked external provider responses only in automated tests, never as production functionality.
+
+Clearly distinguish unit tests, integration tests, and tests requiring real external credentials.
+
+==================================================
+14. ENVIRONMENT CONFIGURATION
+==================================================
+
+Create a complete .env.example.
+
+Include only variables actually used by the implementation.
+
+Expected configuration categories:
+
+APP_ENV
+APP_SECRET_KEY
+DATABASE_URL
+REDIS_URL
+CELERY_BROKER_URL
+CELERY_RESULT_BACKEND
+GEMINI_API_KEY
+GEMINI_MODEL
+FRONTEND_URL
+BACKEND_URL
+CORS_ORIGINS
+ENCRYPTION_KEY
+EMAIL configuration
+Provider-specific credentials where required.
+
+Validate mandatory configuration at application startup.
+
+Do not invent real credentials.
+
+Provide clear setup instructions for obtaining each credential.
+
+Never silently use fake credentials or mock production services.
+
+==================================================
+15. DEPLOYMENT REQUIREMENTS
+==================================================
+
+Provide a working Docker Compose setup containing:
+
+1. frontend
+2. backend
+3. celery_worker
+4. celery_beat
+5. postgres
+6. redis
+7. prometheus
+8. grafana
+
+Requirements:
+
+- Separate containers.
+- Health checks.
+- Persistent PostgreSQL volume.
+- Appropriate Redis persistence/configuration.
+- Correct service networking.
+- Environment variables.
+- Production startup commands.
+- Database migration instructions.
+- Graceful shutdown.
+- Restart policies.
+
+Development and production configurations must be separate.
+
+Do not run the Vite development server in production.
+
+Do not run a Node.js Express backend.
+
+Do not claim the application is deployed unless deployment has actually succeeded.
+
+==================================================
+16. IMPLEMENTATION STRATEGY
+==================================================
+
+Do not attempt to generate a massive frontend prototype and claim the backend is complete.
+
+Implement the project in controlled phases.
+
+PHASE 1 — FOUNDATION
+- Repository structure.
+- Next.js frontend.
+- FastAPI backend.
+- PostgreSQL.
+- SQLAlchemy.
+- Alembic.
+- Redis.
+- Docker Compose.
+- Health checks.
+
+PHASE 2 — AUTHENTICATION
+- Signup.
+- Login.
+- JWT.
+- Refresh tokens.
+- Password reset.
+- Organization management.
+- RBAC.
+- Tenant isolation.
+
+PHASE 3 — CORE SAAS
+- Dashboard.
+- Workflow CRUD.
+- Integration management.
+- Execution records.
+- Incident management.
+
+PHASE 4 — AUTOMATION MONITORING
+- Webhook ingestion.
+- Provider adapters.
+- Celery workers.
+- Scheduled monitoring.
+- Failure detection.
+
+PHASE 5 — AI DIAGNOSIS
+- Gemini integration.
+- Structured diagnosis.
+- Root cause classification.
+- AI recommendations.
+- Diagnosis history.
+
+PHASE 6 — RECOVERY ENGINE
+- Retry policies.
+- Approval workflows.
+- Safe recovery.
+- Idempotency.
+- Recovery verification.
+- Recovery history.
+
+PHASE 7 — OBSERVABILITY
+- Prometheus.
+- Grafana.
+- Metrics.
+- Alert rules.
+- Structured logs.
+
+PHASE 8 — BUSINESS FEATURES
+- Notifications.
+- Team management.
+- Billing architecture.
+- Usage tracking.
+- Admin panel.
+- Audit logs.
+
+PHASE 9 — PRODUCTION HARDENING
+- Security testing.
+- Performance testing.
+- Integration testing.
+- End-to-end testing.
+- Deployment configuration.
+- Documentation.
+
+After each phase:
+
+1. Implement the actual code.
+2. Run relevant tests.
+3. Fix failures.
+4. Verify database migrations.
+5. Verify API contracts.
+6. Update ARCHITECTURE.md.
+7. Update implementation status.
+8. Do not proceed with broken dependencies.
+
+==================================================
+17. STRICT AI STUDIO BEHAVIOR RULES
+==================================================
+
+These rules override your default implementation preferences.
+
+1. Follow the locked architecture exactly.
+
+2. Never replace Python FastAPI with Node.js or Express.
+
+3. Never replace PostgreSQL with Firebase, Supabase or MongoDB.
+
+4. Never replace Redis and Celery with in-memory task queues.
+
+5. Never generate fake API integrations.
+
+6. Never use mock data to claim a feature is implemented.
+
+7. Never mark a feature complete without actual implementation and test evidence.
+
+8. Never create fake authentication.
+
+9. Never hardcode secrets.
+
+10. Never remove a required feature just because implementation is difficult.
+
+11. Never silently change the database schema or architecture.
+
+12. Never generate a frontend-only application while claiming full-stack completion.
+
+13. Never suppress errors instead of fixing their root causes.
+
+14. If a third-party integration needs credentials, implement its real adapter and report that live testing requires credentials.
+
+15. If the current Google AI Studio environment cannot run a required service, generate the correct source code and deployment configuration, and clearly report that runtime verification is pending.
+
+16. If you encounter a limitation, explain it instead of switching technologies.
+
+17. Preserve clean architecture, modularity, type safety, security and maintainability.
+
+==================================================
+18. FINAL ACCEPTANCE CRITERIA
+==================================================
+
+The application will only be considered MVP-complete when:
+
+- Next.js frontend runs.
+- Python FastAPI backend runs.
+- PostgreSQL connects and persists data.
+- Alembic migrations work.
+- Redis connects.
+- Celery workers process tasks.
+- Authentication works.
+- Tenant isolation is tested.
+- Workflows can be registered.
+- At least one real provider integration works.
+- Webhook events are persisted.
+- Incidents are generated from actual failures.
+- Gemini diagnosis works with a real API key.
+- Recovery approval works.
+- At least one supported recovery operation executes and is verified.
+- Prometheus collects actual metrics.
+- Grafana dashboards display real metrics.
+- Automated tests pass.
+- Docker Compose starts the complete application.
+
+A feature that is implemented but has not been tested must be labelled IMPLEMENTED — NOT VERIFIED.
+
+A feature that uses mock data must be labelled MOCK/DEMO ONLY.
+
+A feature requiring external credentials must be labelled WAITING FOR CREDENTIALS.
+
+Never claim 100% completion without evidence.
+
+==================================================
+19. FIRST ACTION — ARCHITECTURE LOCK
+==================================================
+
+Before writing code:
+
+1. Confirm that you understand the complete architecture.
+2. Create ARCHITECTURE.md.
+3. Create a detailed implementation roadmap.
+4. Create the complete project directory structure.
+5. Define the database schema.
+6. Define API contracts.
+7. Define integration adapter interfaces.
+8. Define Celery task architecture.
+9. Define security and tenant-isolation strategy.
+10. Confirm that no prohibited technology has been introduced.
+
+Then begin PHASE 1.
+
+IMPORTANT FINAL INSTRUCTION:
+
+Build a real, maintainable, secure and production-oriented SaaS product.
+
+Do not optimize for how impressive the preview looks.
+
+Optimize for correctness, reliability, security, actual functionality and the ability to deploy and operate the application in a real business environment.
+
+The locked architecture is mandatory. Do not independently change it.
