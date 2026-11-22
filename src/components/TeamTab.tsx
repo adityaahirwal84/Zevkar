@@ -122,7 +122,7 @@ export const TeamTab: React.FC<TeamTabProps> = ({
                 {canManageTeam && member.role !== 'OWNER' && onRemoveMember && (
                   <button
                     type="button"
-                    onClick={() => onRemoveMember(member.id)}
+                    onClick={() => onRemoveMember(member.userId)}
                     className="text-[#B5AA99] hover:text-[#E88A7E] p-1 transition-colors"
                     title="Remove team member"
                     aria-label={`Remove ${member.name}`}

@@ -1,19 +1,19 @@
 from datetime import datetime, timedelta, timezone
-import hashlib
 import re
 import secrets
 from typing import Any, Dict, Optional
-from fastapi import APIRouter, Body, Depends, HTTPException, Request, status
+from fastapi import APIRouter, Body, Depends, HTTPException, Request, Response, status
 from pydantic import BaseModel, EmailStr
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 from zoneinfo import ZoneInfo, ZoneInfoNotFoundError
 
+from app.api.v1.auth import _issue_refresh_token, _set_refresh_cookie
 from app.api.deps import get_current_tenant_member, get_current_user, get_optional_current_user, require_role
 from app.core.database import get_db
 from app.core.rate_limit import enforce_rate_limit
 from app.core.security import create_access_token, get_password_hash
-from app.models.entities import Agency, AgencyMember, AuditLog, Invitation, RefreshToken, User
+from app.models.entities import Agency, AgencyMember, AuditLog, Invitation, User
 from app.schemas.pydantic_models import InviteAcceptRequest, OnboardingProgressUpdate, UserOut
 
 router = APIRouter(prefix="/organizations", tags=["Organizations"])
@@ -523,6 +523,7 @@ async def get_invitation_preview(
 async def accept_invitation(
     token: str,
     request: Request,
+    response: Response,
     payload: Optional[InviteAcceptRequest] = Body(default=None),
     user: Optional[User] = Depends(get_optional_current_user),
     db: AsyncSession = Depends(get_db),
@@ -612,24 +613,17 @@ async def accept_invitation(
     )
 
     access_tok = create_access_token(target_user.id)
-    refresh_tok = create_access_token(target_user.id, expires_delta=timedelta(days=7))
-    db.add(
-        RefreshToken(
-            user_id=target_user.id,
-            token_hash=hashlib.sha256(refresh_tok.encode("utf-8")).hexdigest(),
-            is_revoked=False,
-            expires_at=datetime.now(timezone.utc) + timedelta(days=7),
-        )
-    )
+    refresh_tok = await _issue_refresh_token(db, target_user.id)
     await db.commit()
     await db.refresh(target_user)
 
+    _set_refresh_cookie(response, refresh_tok)
     return {
         "success": True,
         "agency_id": invitation.agency_id,
         "role": membership.role,
         "access_token": access_tok,
-        "refresh_token": refresh_tok,
+        "refresh_token": None,
         "token_type": "bearer",
         "user": UserOut.model_validate(target_user),
     }

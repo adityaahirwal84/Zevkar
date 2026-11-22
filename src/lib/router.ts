@@ -190,19 +190,9 @@ export function resolveProtectedRouteAccess(input: {
   route: AppRoute;
   tab: DashboardTab;
   shouldRedirect: boolean;
-  autostartDemo: boolean;
 } {
   const params = new URLSearchParams(input.search || '');
   const requestedTab = normalizeDashboardTab(params.get('tab'));
-
-  if (params.get('autostart') === '1') {
-    return {
-      route: getDashboardRouteForRole(input.userRole),
-      tab: requestedTab,
-      shouldRedirect: true,
-      autostartDemo: true,
-    };
-  }
 
   const normalized = normalizePathname(input.pathname);
   if ((isDashboardRoute(normalized) || isOnboardingRoute(normalized)) && !input.isAuthenticated) {
@@ -210,7 +200,6 @@ export function resolveProtectedRouteAccess(input: {
       route: '/login',
       tab: 'overview',
       shouldRedirect: true,
-      autostartDemo: false,
     };
   }
 
@@ -218,7 +207,6 @@ export function resolveProtectedRouteAccess(input: {
     route: normalized,
     tab: requestedTab,
     shouldRedirect: false,
-    autostartDemo: false,
   };
 }
 

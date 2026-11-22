@@ -102,14 +102,14 @@ test('resolveProtectedRouteAccess redirects unauthenticated dashboard/onboarding
   assert.equal(authDash.tab, 'incidents');
   assert.equal(authDash.shouldRedirect, false);
 
-  const autostartAccess = resolveProtectedRouteAccess({
+  const demoQueryAccess = resolveProtectedRouteAccess({
     pathname: '/',
     search: '?autostart=1',
     isAuthenticated: false,
     userRole: 'OWNER',
   });
-  assert.equal(autostartAccess.route, '/dashboard');
-  assert.equal(autostartAccess.autostartDemo, true);
+  assert.equal(demoQueryAccess.route, '/');
+  assert.equal(demoQueryAccess.shouldRedirect, false);
 
   const publicHome = resolveProtectedRouteAccess({
     pathname: '/',

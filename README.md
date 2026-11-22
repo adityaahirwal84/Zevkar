@@ -24,7 +24,7 @@ Zevkar acts as an autonomous automation intelligence platform that:
 
 | Layer | Technology | Version | Key Components |
 | :--- | :--- | :--- | :--- |
-| **Frontend** | Next.js App Router | 15.2+ | React 19, TypeScript, Tailwind CSS, TanStack Query, Recharts, Lucide |
+| **Frontend** | Vite + React | 8+ / 19 | Root Zevkar UI, TypeScript, Tailwind CSS, Lucide, Nginx production serving |
 | **Backend** | Python & FastAPI | 3.12+ | Pydantic v2, SQLAlchemy 2.0 Async, Uvicorn, HTTPX |
 | **Database** | PostgreSQL | 16+ | 20 Relational Entities, Multi-Tenant Segregation, Alembic Migrations |
 | **Queue / Cache** | Redis & Celery | 7+ | Celery Worker & Beat scheduler for background health probes |
@@ -39,7 +39,8 @@ Zevkar acts as an autonomous automation intelligence platform that:
 ```
 ├── .env.example                     # Exhaustive environment variable matrix
 ├── docker-compose.yml               # 8-service production orchestration
-├── Dockerfile.frontend              # Multi-stage Next.js 15 standalone build
+├── Dockerfile.frontend              # Multi-stage Vite build served by Nginx
+├── nginx.conf.template              # SPA fallback and FastAPI reverse proxy
 ├── VSCODE_RUNTIME_TEST_PLAN.md      # Step-by-step local VS Code & Copilot runbook
 ├── ARCHITECTURE.md                  # Comprehensive architectural specification
 ├── IMPLEMENTATION_STATUS.md         # Full audit ledger across all 20 modules
@@ -68,17 +69,19 @@ Zevkar acts as an autonomous automation intelligence platform that:
 │   │   ├── integrations/            # Provider adapters (n8n, Make, Zapier)
 │   │   └── services/                # Gemini AI diagnosis service & classifier
 │   └── tests/                       # Pytest test suite (10 unit & tenancy tests)
-├── frontend/                        # Production Next.js 15+ App Router Frontend
+├── frontend/                        # Retained Next.js frontend backup (not used by Compose)
 │   ├── package.json
 │   ├── tsconfig.json
 │   ├── next.config.ts
 │   ├── lib/api-client.ts            # Typed FastAPI client for all 13 domains
 │   └── app/                         # App Router layout, pages & dashboards
-├── src/                             # AI Studio preview React application
+├── src/                             # Primary Google AI Studio Zevkar React application
 │   ├── lib/doctor-engine.ts         # Pure algorithmic reliability engine
 │   └── lib/doctor-engine.test.ts    # 7 passing unit tests (Node test runner)
-└── server.ts                        # Development preview server on port 3000
+└── server.ts                        # Development preview server; not the production API
 ```
+
+The Compose frontend builds the root Vite application and serves its static assets with Nginx on port 3000. Nginx forwards `/api/` and health requests to FastAPI. The separate `frontend/` Next.js application is retained as a backup and is not served by the default Compose configuration.
 
 ---
 

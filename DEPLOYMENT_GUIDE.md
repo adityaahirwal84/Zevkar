@@ -33,7 +33,7 @@ docker compose exec api alembic upgrade head
 
 ## 2. Container Topology
 
-1. `frontend`: Next.js 15+ / React production bundle served on port 3000.
+1. `frontend`: root Vite + React production bundle served by Nginx on port 3000. Nginx proxies `/api/`, `/healthz`, `/health/ready`, and `/metrics` to FastAPI using `BACKEND_URL` (default: `http://api:8000`). The separate Next.js app under `frontend/` is retained as a backup and is not used by Compose.
 2. `api`: Python 3.12+ FastAPI backend running via Uvicorn on port 8000.
 3. `celery_worker`: Celery task worker consuming from Redis queue.
 4. `celery_beat`: Celery Beat scheduler executing 5-min integration sync & 1-min stuck run detector.

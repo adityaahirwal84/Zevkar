@@ -1,20 +1,24 @@
 FROM python:3.12-slim
 
+ENV PYTHONDONTWRITEBYTECODE=1 \
+    PYTHONUNBUFFERED=1 \
+    PIP_NO_CACHE_DIR=1
+
 WORKDIR /app
 
-ENV PYTHONDONTWRITEBYTECODE=1 \
-    PYTHONUNBUFFERED=1
+COPY requirements.txt ./
+RUN python -m pip install --upgrade pip setuptools wheel \
+    && python -m pip install -r requirements.txt
 
-RUN apt-get update && apt-get install -y --no-install-recommends \
-    build-essential \
-    libpq-dev \
-    curl \
-    && rm -rf /var/lib/apt/lists/*
+RUN groupadd --system --gid 10001 app \
+    && useradd --system --uid 10001 --gid app --create-home app
 
-COPY requirements.txt .
-RUN pip install --no-cache-dir -r requirements.txt
+COPY app ./app
+COPY migrations ./migrations
+COPY alembic.ini ./alembic.ini
 
-COPY . .
+RUN chown -R app:app /app
+USER app
 
 EXPOSE 8000
 

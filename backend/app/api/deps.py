@@ -1,5 +1,5 @@
 from typing import AsyncGenerator, Optional
-from fastapi import Depends, HTTPException, status
+from fastapi import Depends, Header, HTTPException, status
 from fastapi.security import OAuth2PasswordBearer
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select
@@ -61,21 +61,36 @@ async def get_optional_current_user(
 
 async def get_current_tenant_member(
     user: User = Depends(get_current_user),
-    db: AsyncSession = Depends(get_db)
+    db: AsyncSession = Depends(get_db),
+    organization_id: Optional[str] = Header(default=None, alias="X-Organization-ID"),
 ) -> AgencyMember:
-    result = await db.execute(
-        select(AgencyMember).where(
-            AgencyMember.user_id == user.id,
-            AgencyMember.status == "ACTIVE"
-        )
+    query = select(AgencyMember).where(
+        AgencyMember.user_id == user.id,
+        AgencyMember.status == "ACTIVE",
     )
-    member = result.scalar_one_or_none()
-    if not member:
+    if organization_id:
+        result = await db.execute(query.where(AgencyMember.agency_id == organization_id))
+        member = result.scalar_one_or_none()
+        if member:
+            return member
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="User does not belong to the requested active organization",
+        )
+
+    result = await db.execute(query)
+    memberships = result.scalars().all()
+    if not memberships:
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
             detail="User does not belong to an active organization tenant",
         )
-    return member
+    if len(memberships) > 1:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Multiple active organizations found; select one with the X-Organization-ID header",
+        )
+    return memberships[0]
 
 def require_role(allowed_roles: list[str]):
     async def role_checker(member: AgencyMember = Depends(get_current_tenant_member)) -> AgencyMember:

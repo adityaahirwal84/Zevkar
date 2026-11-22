@@ -35,7 +35,7 @@ import { AcceptInvitePage } from './components/pages/AcceptInvitePage';
 import { OnboardingPage } from './components/pages/OnboardingPage';
 import { LegalPages } from './components/pages/LegalPages';
 import { AuthProvider, useAuth } from './context/AuthContext';
-import { authFetch } from './lib/api';
+import { apiJson, authFetch, normalizeApiResponse } from './lib/api';
 import { resolvePostAuthDestination } from './lib/onboarding';
 import {
   AppRoute,
@@ -50,6 +50,7 @@ import {
 } from './lib/router';
 import {
   Client,
+  Agency,
   Integration,
   Workflow,
   Execution,
@@ -96,7 +97,6 @@ function AppContent() {
     dashboardRoute,
     userRole,
     loginWithAuthResponse,
-    establishDemoSession,
     logout,
     hasActiveToken,
   } = useAuth();
@@ -109,15 +109,6 @@ function AppContent() {
       userRole: authUser?.role,
     });
 
-    if (access.autostartDemo) {
-      return {
-        route: access.route,
-        tab: access.tab,
-        pendingTab: null as NavTab | null,
-        autostartDemo: true,
-      };
-    }
-
     const wasUnauthenticatedDashboardAttempt =
       access.shouldRedirect && access.route === '/login';
 
@@ -127,7 +118,6 @@ function AppContent() {
       pendingTab: wasUnauthenticatedDashboardAttempt
         ? normalizeDashboardTab(new URLSearchParams(window.location.search).get('tab'))
         : null,
-      autostartDemo: false,
     };
   });
 
@@ -265,10 +255,6 @@ function AppContent() {
   }, [route]);
 
   useEffect(() => {
-    if (initialNav.autostartDemo) {
-      const demo = establishDemoSession();
-      authUserRoleRef.current = demo.user.role;
-    }
     const initialTarget = isDashboardRoute(initialNav.route)
       ? resolveDashboardHref(authUserRoleRef.current, initialNav.tab)
       : initialNav.route;
@@ -280,7 +266,16 @@ function AppContent() {
   }, []);
 
   useEffect(() => {
-    if (!isInitializing && !isAuthenticated && isDashboardRoute(route)) {
+    if (isInitializing) return;
+    if (isAuthenticated && route === '/login' && pendingDashboardTabRef.current !== null) {
+      const tab = pendingDashboardTabRef.current;
+      pendingDashboardTabRef.current = null;
+      navigate(dashboardRoute, { tab, replace: true });
+    }
+  }, [dashboardRoute, isAuthenticated, isInitializing, navigate, route]);
+
+  useEffect(() => {
+    if (!isInitializing && !isAuthenticated && (isDashboardRoute(route) || isOnboardingRoute(route))) {
       pendingDashboardTabRef.current = normalizeDashboardTab(
         new URLSearchParams(window.location.search).get('tab')
       );
@@ -342,11 +337,18 @@ function AppContent() {
       setIsInitialLoading(false);
       return;
     }
+    const failedRequests: string[] = [];
     try {
-      const fetchJson = async (url: string) => {
-        const r = await authFetch(url);
-        if (!r.ok) return null;
-        return r.json().catch(() => null);
+      const fetchJson = async <T,>(url: string): Promise<T | null> => {
+        try {
+          const response = await apiJson<unknown>(url);
+          return normalizeApiResponse(response) as T;
+        } catch (error) {
+          const reason = error instanceof Error ? error.message : 'Unknown API error';
+          failedRequests.push(`${url}: ${reason}`);
+          console.error(`Unable to load dashboard data from ${url}.`, error);
+          return null;
+        }
       };
 
       const [
@@ -362,31 +364,31 @@ function AppContent() {
         teamRes,
         invitationsRes,
         auditRes,
-        tzRes,
         recMetricsRes,
         recPolicyRes,
         recRequestsRes,
         onboardingRes,
         agencyRes,
       ] = await Promise.all([
-        fetchJson('/api/v1/analytics/overview'),
-        fetchJson('/api/v1/clients'),
-        fetchJson('/api/v1/integrations'),
-        fetchJson('/api/v1/workflows'),
-        fetchJson('/api/v1/executions?limit=50'),
-        fetchJson('/api/v1/incidents'),
-        fetchJson('/api/v1/approvals'),
-        fetchJson('/api/v1/notifications'),
-        fetchJson('/api/v1/notifications/preferences'),
-        fetchJson('/api/v1/team'),
-        fetchJson('/api/v1/team/invitations'),
-        fetchJson('/api/v1/audit-logs'),
-        fetchJson('/api/v1/settings/timezone'),
-        fetchJson('/api/v1/recovery/metrics'),
-        fetchJson('/api/v1/recovery/policies'),
-        fetchJson('/api/v1/recovery/requests'),
-        fetchJson('/api/v1/onboarding'),
-        fetchJson('/api/v1/agency'),
+        fetchJson<DashboardStats>('/api/v1/analytics/overview'),
+        fetchJson<Client[]>('/api/v1/clients'),
+        fetchJson<Integration[]>('/api/v1/integrations'),
+        fetchJson<Workflow[]>('/api/v1/workflows'),
+        fetchJson<Execution[]>('/api/v1/executions?limit=50'),
+        fetchJson<Incident[]>('/api/v1/incidents'),
+        fetchJson<ApprovalRequest[]>('/api/v1/approvals'),
+        fetchJson<NotificationItem[]>('/api/v1/notifications'),
+        fetchJson<NotificationPreferenceItem[]>('/api/v1/notifications/preferences'),
+        fetchJson<AgencyMember[]>('/api/v1/orgs/members'),
+        userRole === 'OWNER' || userRole === 'ADMIN'
+          ? fetchJson<InvitationItem[]>('/api/v1/orgs/invitations')
+          : Promise.resolve<InvitationItem[]>([]),
+        fetchJson<AuditLogItem[]>('/api/v1/audit-logs'),
+        fetchJson<RecoveryMetrics>('/api/v1/recovery/metrics'),
+        fetchJson<RecoveryPolicy>('/api/v1/recovery/policies'),
+        fetchJson<RecoveryRequest[]>('/api/v1/recovery/requests'),
+        fetchJson<OnboardingState>('/api/v1/onboarding'),
+        fetchJson<Agency>('/api/v1/orgs/current'),
       ]);
 
       if (statsRes) setStats(statsRes);
@@ -413,27 +415,22 @@ function AppContent() {
           // ignore storage quota errors
         }
       }
-      if (tzRes && isValidTimeZone(tzRes.timezone)) {
-        const savedTz = (() => {
-          try {
-            return (
-              window.localStorage.getItem('ai_doctor_timezone') ||
-              window.localStorage.getItem('zevkar_timezone')
-            );
-          } catch {
-            return null;
-          }
-        })();
-        if (!savedTz || tzRes.timezone !== 'UTC') {
-          setTimezone(tzRes.timezone);
-        }
+      if (failedRequests.length > 0) {
+        setActionFeedback({
+          type: 'error',
+          text: `Some dashboard data could not be loaded: ${failedRequests.slice(0, 3).join(' | ')}`,
+        });
       }
     } catch (err) {
       console.error('Error fetching data from server:', err);
+      setActionFeedback({
+        type: 'error',
+        text: err instanceof Error ? err.message : 'Unable to load dashboard data.',
+      });
     } finally {
       setIsInitialLoading(false);
     }
-  }, [hasActiveToken, resetWorkspaceData, setAgency]);
+  }, [hasActiveToken, resetWorkspaceData, setAgency, userRole]);
 
   useEffect(() => {
     refreshAllData();
@@ -784,7 +781,7 @@ function AppContent() {
   };
 
   const handleInviteMember = async (email: string, name: string, role: Role) => {
-    const res = await authFetch('/api/v1/team/invite', {
+    const res = await authFetch('/api/v1/orgs/members/invite', {
       method: 'POST',
       body: JSON.stringify({ email, name, role }),
     });
@@ -798,7 +795,7 @@ function AppContent() {
   };
 
   const handleUpdateMemberRole = async (memberId: string, role: Role) => {
-    const res = await authFetch(`/api/v1/team/members/${memberId}/role`, {
+    const res = await authFetch(`/api/v1/orgs/members/${memberId}/role`, {
       method: 'PUT',
       body: JSON.stringify({ role }),
     });
@@ -811,8 +808,8 @@ function AppContent() {
     }
   };
 
-  const handleRemoveMember = async (memberId: string) => {
-    const res = await authFetch(`/api/v1/team/members/${memberId}`, { method: 'DELETE' });
+  const handleRemoveMember = async (userId: string) => {
+    const res = await authFetch(`/api/v1/organizations/${agency.id}/members/${userId}`, { method: 'DELETE' });
     if (res.ok) {
       setActionFeedback({ type: 'info', text: 'Team member removed.' });
       await refreshAllData();
@@ -823,7 +820,7 @@ function AppContent() {
   };
 
   const handleRevokeInvitation = async (invitationId: string) => {
-    const res = await authFetch(`/api/v1/team/invitations/${invitationId}`, { method: 'DELETE' });
+    const res = await authFetch(`/api/v1/orgs/invitations/${invitationId}`, { method: 'DELETE' });
     if (res.ok) {
       setActionFeedback({ type: 'info', text: 'Invitation revoked.' });
       await refreshAllData();
@@ -846,17 +843,21 @@ function AppContent() {
   };
 
   const handleUpdateAgencyProfile = async (updates: { name: string; contactEmail: string }) => {
-    const res = await authFetch('/api/v1/agency', {
-      method: 'PUT',
-      body: JSON.stringify(updates),
-    });
-    const data = await res.json().catch(() => ({}));
-    if (res.ok && data.agency) {
-      setAgency(data.agency);
+    try {
+      const updatedAgency = normalizeApiResponse(
+        await apiJson<Agency>('/api/v1/orgs/current', {
+          method: 'PUT',
+          body: JSON.stringify({ name: updates.name, contact_email: updates.contactEmail }),
+        })
+      );
+      setAgency(updatedAgency);
       setActionFeedback({ type: 'info', text: 'Organization profile updated.' });
       await refreshAllData();
-    } else {
-      setActionFeedback({ type: 'error', text: data.error || 'Failed to update organization profile.' });
+    } catch (error) {
+      setActionFeedback({
+        type: 'error',
+        text: error instanceof Error ? error.message : 'Failed to update organization profile.',
+      });
     }
   };
 
@@ -872,7 +873,7 @@ function AppContent() {
       setActionFeedback({ type: 'error', text: `Unsupported timezone: ${nextTimezone}` });
       return;
     }
-    const res = await authFetch('/api/v1/settings/timezone', {
+    const res = await authFetch('/api/v1/auth/timezone', {
       method: 'PUT',
       body: JSON.stringify({ timezone: nextTimezone }),
     });
@@ -969,20 +970,21 @@ function AppContent() {
         mode={authMode}
         onNavigate={navigate}
         onAuthSuccess={async (authData, options) => {
-          const { user: nextUser } = loginWithAuthResponse(authData);
-          authUserRoleRef.current = nextUser?.role;
+          const session = await loginWithAuthResponse(authData);
+          const nextUser = session.user;
+          authUserRoleRef.current = nextUser.role;
           const dest = resolvePostAuthDestination({
             isAuthenticated: true,
             onboardingCompleted: options?.isNewSignup
               ? false
-              : authData?.agency?.onboardingCompleted,
-            role: nextUser?.role,
+              : session.agency.onboardingCompleted,
+            role: nextUser.role,
             pendingTab: pendingDashboardTabRef.current,
           });
           pendingDashboardTabRef.current = null;
           navigate(dest.route, {
             tab: dest.tab as NavTab | undefined,
-            role: nextUser?.role,
+            role: nextUser.role,
           });
           await refreshAllData();
         }}
@@ -994,17 +996,18 @@ function AppContent() {
       <AcceptInvitePage
         onNavigate={navigate}
         onAuthSuccess={async (authData) => {
-          const { user: nextUser } = loginWithAuthResponse(authData);
-          authUserRoleRef.current = nextUser?.role;
+          const session = await loginWithAuthResponse(authData);
+          const nextUser = session.user;
+          authUserRoleRef.current = nextUser.role;
           const dest = resolvePostAuthDestination({
             isAuthenticated: true,
-            onboardingCompleted: authData?.agency?.onboardingCompleted,
-            role: nextUser?.role,
+            onboardingCompleted: session.agency.onboardingCompleted,
+            role: nextUser.role,
             pendingTab: null,
           });
           navigate(dest.route, {
             tab: dest.tab as NavTab | undefined,
-            role: nextUser?.role,
+            role: nextUser.role,
           });
           await refreshAllData();
         }}
@@ -1019,8 +1022,16 @@ function AppContent() {
   const handleSignOut = async () => {
     pendingDashboardTabRef.current = null;
     resetWorkspaceData();
-    await logout();
-    navigate('/login');
+    try {
+      await logout();
+    } catch (error) {
+      setActionFeedback({
+        type: 'error',
+        text: error instanceof Error ? error.message : 'Unable to complete server logout.',
+      });
+    } finally {
+      navigate('/login');
+    }
   };
 
   return (

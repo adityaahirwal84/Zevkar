@@ -3,15 +3,11 @@ import { AlertCircle, ArrowLeft, ArrowRight, CheckCircle2, MailCheck, ShieldChec
 import { AppRoute } from '../../lib/router';
 import { useAuth } from '../../context/AuthContext';
 import { ZevkarLogo } from '../marketing/ZevkarLogo';
+import { apiJson, AuthTokenResponse } from '../../lib/api';
 
 interface AcceptInvitePageProps {
   onNavigate: (route: AppRoute) => void;
-  onAuthSuccess: (authData: {
-    token?: string;
-    refreshToken?: string;
-    user?: any;
-    agency?: any;
-  }) => Promise<void> | void;
+  onAuthSuccess: (authData: AuthTokenResponse) => Promise<void> | void;
 }
 
 interface InvitationPreview {
@@ -23,6 +19,21 @@ interface InvitationPreview {
   expiresAt?: string;
   agencyName?: string;
   error?: string;
+}
+
+interface InvitationPreviewResponse {
+  valid: boolean;
+  status: InvitationPreview['status'];
+  email?: string;
+  role?: string;
+  expires_at?: string;
+  agency_name?: string;
+}
+
+interface InvitationAcceptResponse extends AuthTokenResponse {
+  success: boolean;
+  agency_id: string;
+  role: string;
 }
 
 export const AcceptInvitePage: React.FC<AcceptInvitePageProps> = ({
@@ -57,25 +68,22 @@ export const AcceptInvitePage: React.FC<AcceptInvitePageProps> = ({
     setLoadingPreview(true);
     setError(null);
     try {
-      const res = await fetch(`/api/v1/team/invitations/${encodeURIComponent(cleaned)}`);
-      const data = await res.json().catch(() => ({}));
-      if (!res.ok) {
-        setPreview({
-          valid: false,
-          status: data.status || 'INVALID',
-          error: data.error || 'Invitation link is invalid or was not found.',
-        });
-        return;
-      }
-      setPreview(data);
-      if (data.name && !fullName) {
-        setFullName(data.name);
-      }
-    } catch {
+      const data = await apiJson<InvitationPreviewResponse>(
+        `/api/v1/orgs/invitations/${encodeURIComponent(cleaned)}`
+      );
+      setPreview({
+        valid: data.valid,
+        status: data.status,
+        email: data.email,
+        role: data.role,
+        expiresAt: data.expires_at,
+        agencyName: data.agency_name,
+      });
+    } catch (error) {
       setPreview({
         valid: false,
         status: 'INVALID',
-        error: 'Unable to validate invitation link with the server.',
+        error: error instanceof Error ? error.message : 'Unable to validate invitation link with the server.',
       });
     } finally {
       setLoadingPreview(false);
@@ -98,31 +106,31 @@ export const AcceptInvitePage: React.FC<AcceptInvitePageProps> = ({
       setError('Enter a valid invitation token.');
       return;
     }
-    if (!isAuthenticated && password && password.length < 6) {
-      setError('Password must be at least 6 characters.');
+    if (!isAuthenticated && password.length < 8) {
+      setError('Password must be at least 8 characters.');
+      return;
+    }
+    if (!isAuthenticated && fullName.trim().length < 2) {
+      setError('Enter your full name (at least 2 characters).');
       return;
     }
 
     setSubmitting(true);
     try {
-      const res = await fetch(`/api/v1/team/invitations/${encodeURIComponent(cleanedToken)}/accept`, {
-        method: 'POST',
-        credentials: 'same-origin',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          fullName: fullName.trim() || undefined,
-          password: password || undefined,
-        }),
-      });
-      const data = await res.json().catch(() => ({}));
-      if (!res.ok) {
-        setError(data.error || data.detail || 'Unable to accept workspace invitation.');
-        return;
-      }
-      setSuccessMsg(`Joined ${data.agency?.name || preview?.agencyName || 'workspace'} as ${data.user?.role || preview?.role || 'MEMBER'}. Redirecting...`);
+      const data = await apiJson<InvitationAcceptResponse>(
+        `/api/v1/orgs/invitations/${encodeURIComponent(cleanedToken)}/accept`,
+        {
+          method: 'POST',
+          body: JSON.stringify({
+            name: fullName.trim() || undefined,
+            password: password || undefined,
+          }),
+        }
+      );
+      setSuccessMsg(`Joined ${preview?.agencyName || 'workspace'} as ${data.role || preview?.role || 'MEMBER'}. Redirecting...`);
       await onAuthSuccess(data);
-    } catch (err: any) {
-      setError(err?.message || 'Unable to reach workspace invitation service.');
+    } catch (error) {
+      setError(error instanceof Error ? error.message : 'Unable to reach workspace invitation service.');
     } finally {
       setSubmitting(false);
     }
@@ -240,7 +248,15 @@ export const AcceptInvitePage: React.FC<AcceptInvitePageProps> = ({
               </p>
               <button
                 type="button"
-                onClick={() => void logout()}
+                onClick={() => {
+                  void logout().catch((logoutError: unknown) => {
+                    setError(
+                      logoutError instanceof Error
+                        ? logoutError.message
+                        : 'Unable to complete server logout.'
+                    );
+                  });
+                }}
                 className="rounded-md border border-[#544021] bg-[#211D10] px-3 py-1.5 font-semibold text-[#F0E9D9]"
               >
                 Sign Out to Accept with {preview?.email}
@@ -292,14 +308,15 @@ export const AcceptInvitePage: React.FC<AcceptInvitePageProps> = ({
                   {!isAuthenticated && (
                     <div>
                       <label htmlFor="invite-password" className="block font-semibold text-[#F0E9D9] mb-1">
-                        Set Account Password (optional if joining directly)
+                        Set Account Password
                       </label>
                       <input
                         id="invite-password"
                         type="password"
                         value={password}
                         onChange={(e) => setPassword(e.target.value)}
-                        placeholder="Minimum 6 characters"
+                        placeholder="At least 8 characters"
+                        minLength={8}
                         className="w-full rounded-md border border-[#363125] bg-[#211D10] px-3 py-2 text-sm text-[#F0E9D9]"
                       />
                     </div>

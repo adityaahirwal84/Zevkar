@@ -39,7 +39,7 @@ export interface Agency {
   id: string;
   name: string;
   slug: string;
-  tier: 'FREE' | 'STARTER' | 'GROWTH' | 'AGENCY_PRO';
+  tier: 'FREE' | 'STARTER' | 'GROWTH' | 'AGENCY_PRO' | 'PRO' | 'ENTERPRISE';
   contactEmail: string;
   timezone?: string;
   onboardingStep?: number;

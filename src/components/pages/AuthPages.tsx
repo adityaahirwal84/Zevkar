@@ -3,12 +3,13 @@ import { ArrowRight, AlertCircle, CheckCircle2, ArrowLeft, LayoutDashboard, LogO
 import { AppRoute } from '../../lib/router';
 import { useAuth } from '../../context/AuthContext';
 import { ZevkarLogo } from '../marketing/ZevkarLogo';
+import { apiJson, AuthTokenResponse } from '../../lib/api';
 
 interface AuthPageProps {
   mode: 'login' | 'signup' | 'forgot-password' | 'reset-password' | 'verify-email';
   onNavigate: (route: AppRoute) => void;
   onAuthSuccess: (
-    authData: { token?: string; refreshToken?: string; user?: any; agency?: any },
+    authData: AuthTokenResponse,
     options?: { isNewSignup?: boolean }
   ) => Promise<void> | void;
 }
@@ -19,8 +20,8 @@ export const AuthPages: React.FC<AuthPageProps> = ({
   onAuthSuccess,
 }) => {
   const { isAuthenticated, user, agency, dashboardRoute, logout } = useAuth();
-  const [email, setEmail] = useState(mode === 'login' ? 'aditya84azm@gmail.com' : '');
-  const [password, setPassword] = useState(mode === 'login' ? 'demo-workspace-access' : '');
+  const [email, setEmail] = useState('');
+  const [password, setPassword] = useState('');
   const [fullName, setFullName] = useState('');
   const [agencyName, setAgencyName] = useState('');
   const [tokenInput, setTokenInput] = useState(() => {
@@ -47,18 +48,17 @@ export const AuthPages: React.FC<AuthPageProps> = ({
       }
       setSubmitting(true);
       try {
-        const res = await fetch('/api/v1/auth/forgot-password', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ email: email.trim() }),
-        });
-        const data = await res.json().catch(() => ({}));
-        if (!res.ok) {
-          setError(data.error || data.detail || 'Unable to process password reset request.');
-          return;
-        }
+        const data = await apiJson<{ message?: string; dev_reset_token?: string | null }>(
+          '/api/v1/auth/forgot-password',
+          {
+            method: 'POST',
+            body: JSON.stringify({ email: email.trim() }),
+          }
+        );
         setDevPreviewToken(data.dev_reset_token || null);
         setSuccessMessage(data.message || 'Password reset instructions prepared.');
+      } catch (error) {
+        setError(error instanceof Error ? error.message : 'Unable to process password reset request.');
       } finally {
         setSubmitting(false);
       }
@@ -76,17 +76,13 @@ export const AuthPages: React.FC<AuthPageProps> = ({
       }
       setSubmitting(true);
       try {
-        const res = await fetch('/api/v1/auth/reset-password', {
+        const data = await apiJson<{ message?: string }>('/api/v1/auth/reset-password', {
           method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ token: tokenInput.trim(), newPassword }),
+          body: JSON.stringify({ token: tokenInput.trim(), new_password: newPassword }),
         });
-        const data = await res.json().catch(() => ({}));
-        if (!res.ok) {
-          setError(data.error || data.detail || 'Invalid or expired reset token.');
-          return;
-        }
         setSuccessMessage(data.message || 'Password updated successfully. You can now sign in.');
+      } catch (error) {
+        setError(error instanceof Error ? error.message : 'Invalid or expired reset token.');
       } finally {
         setSubmitting(false);
       }
@@ -100,17 +96,13 @@ export const AuthPages: React.FC<AuthPageProps> = ({
       }
       setSubmitting(true);
       try {
-        const res = await fetch('/api/v1/auth/verify-email', {
+        const data = await apiJson<{ message?: string }>('/api/v1/auth/verify-email', {
           method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ token: tokenInput.trim() }),
         });
-        const data = await res.json().catch(() => ({}));
-        if (!res.ok) {
-          setError(data.error || data.detail || 'Invalid verification token.');
-          return;
-        }
         setSuccessMessage(data.message || 'Email verified successfully.');
+      } catch (error) {
+        setError(error instanceof Error ? error.message : 'Invalid verification token.');
       } finally {
         setSubmitting(false);
       }
@@ -121,8 +113,8 @@ export const AuthPages: React.FC<AuthPageProps> = ({
       setError('Enter a valid work email address.');
       return;
     }
-    if (password.trim().length < 6) {
-      setError('Password must be at least 6 characters.');
+    if (mode === 'signup' ? password.length < 8 : !password) {
+      setError(mode === 'signup' ? 'Password must be at least 8 characters.' : 'Enter your password.');
       return;
     }
     if (mode === 'signup' && (!fullName.trim() || !agencyName.trim())) {
@@ -132,27 +124,25 @@ export const AuthPages: React.FC<AuthPageProps> = ({
 
     setSubmitting(true);
     try {
-      const endpoint = mode === 'login' ? '/api/v1/auth/login' : '/api/v1/auth/register';
-      const payload =
+      const endpoint = mode === 'login' ? '/api/v1/auth/login' : '/api/v1/auth/signup';
+      const payload: Record<string, string> =
         mode === 'login'
           ? { email: email.trim(), password }
-          : { email: email.trim(), password, fullName: fullName.trim(), agencyName: agencyName.trim() };
+          : {
+              email: email.trim(),
+              password,
+              name: fullName.trim(),
+              agency_name: agencyName.trim(),
+            };
 
-      const res = await fetch(endpoint, {
+      const data = await apiJson<AuthTokenResponse>(endpoint, {
         method: 'POST',
-        credentials: 'same-origin',
-        headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(payload),
       });
-      const data = await res.json();
-      if (!res.ok) {
-        setError(data.error || data.detail || 'Authentication failed.');
-        return;
-      }
 
       await onAuthSuccess(data, { isNewSignup: mode === 'signup' });
-    } catch (err: any) {
-      setError(err?.message || 'Unable to reach authentication service.');
+    } catch (error) {
+      setError(error instanceof Error ? error.message : 'Unable to reach authentication service.');
     } finally {
       setSubmitting(false);
     }
@@ -160,15 +150,34 @@ export const AuthPages: React.FC<AuthPageProps> = ({
 
   const handleRequestDemoVerifyToken = async () => {
     setError(null);
-    const res = await fetch('/api/v1/auth/resend-verification', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ email: email || 'ops@agency.com' }),
-    });
-    const data = await res.json().catch(() => ({}));
-    if (data.dev_verification_token) {
-      setTokenInput(data.dev_verification_token);
-      setDevPreviewToken(data.dev_verification_token);
+    if (!email.trim()) {
+      setError('Enter your email address first.');
+      return;
+    }
+    try {
+      const data = await apiJson<{ message?: string; dev_verification_token?: string | null }>(
+        '/api/v1/auth/resend-verification',
+        {
+          method: 'POST',
+          body: JSON.stringify({ email: email.trim() }),
+        }
+      );
+      if (data.dev_verification_token) {
+        setTokenInput(data.dev_verification_token);
+        setDevPreviewToken(data.dev_verification_token);
+      }
+      setSuccessMessage(data.message || 'Verification instructions prepared.');
+    } catch (error) {
+      setError(error instanceof Error ? error.message : 'Unable to request verification instructions.');
+    }
+  };
+
+  const handleLogout = async () => {
+    setError(null);
+    try {
+      await logout();
+    } catch (error) {
+      setError(error instanceof Error ? error.message : 'Unable to complete server logout.');
     }
   };
 
@@ -246,7 +255,7 @@ export const AuthPages: React.FC<AuthPageProps> = ({
               </button>
               <button
                 type="button"
-                onClick={() => logout()}
+                onClick={() => void handleLogout()}
                 className="w-full inline-flex items-center justify-center gap-2 rounded-md border border-[#363125] bg-[#211D10] hover:border-[#B8AE9B] py-2.5 text-xs font-semibold text-[#B8AE9B] hover:text-[#F0E9D9] transition-colors"
               >
                 <LogOut className="h-3.5 w-3.5" aria-hidden="true" />
@@ -393,6 +402,8 @@ export const AuthPages: React.FC<AuthPageProps> = ({
                     value={password}
                     onChange={(e) => setPassword(e.target.value)}
                     placeholder="Enter password"
+                    minLength={mode === 'signup' ? 8 : undefined}
+                    autoComplete={mode === 'signup' ? 'new-password' : 'current-password'}
                     className="w-full rounded-md border border-[#363125] bg-[#211D10] px-3.5 py-2.5 text-sm text-[#F0E9D9] placeholder:text-[#B8AE9B]/50"
                   />
                 </div>

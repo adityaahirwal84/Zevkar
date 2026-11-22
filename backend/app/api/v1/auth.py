@@ -2,9 +2,10 @@ from datetime import datetime, timedelta, timezone
 import hashlib
 import re
 import secrets
-from fastapi import APIRouter, Depends, HTTPException, Request, status
+from typing import Optional
+from fastapi import APIRouter, Body, Cookie, Depends, HTTPException, Request, Response, status
 from pydantic import BaseModel, EmailStr, Field
-from sqlalchemy import select, update
+from sqlalchemy import func, select, update
 from sqlalchemy.ext.asyncio import AsyncSession
 from zoneinfo import ZoneInfo, ZoneInfoNotFoundError
 
@@ -18,10 +19,35 @@ from app.core.security import (
     get_password_hash,
     verify_password,
 )
-from app.models.entities import Agency, AgencyMember, AuditLog, RefreshToken, User
+from app.models.entities import Agency, AgencyMember, AuditLog, Client, RefreshToken, User, Workflow
 from app.schemas.pydantic_models import TimezoneUpdate, Token, UserCreate, UserOut
 
 router = APIRouter(prefix="/auth", tags=["Authentication"])
+REFRESH_COOKIE_NAME = "refresh_token"
+REFRESH_COOKIE_PATH = "/api/v1/auth"
+REFRESH_TOKEN_MAX_AGE_SECONDS = 7 * 24 * 60 * 60
+
+
+def _set_refresh_cookie(response: Response, token: str) -> None:
+    response.set_cookie(
+        key=REFRESH_COOKIE_NAME,
+        value=token,
+        max_age=REFRESH_TOKEN_MAX_AGE_SECONDS,
+        httponly=True,
+        secure=settings.ENVIRONMENT.lower() == "production",
+        samesite="lax",
+        path=REFRESH_COOKIE_PATH,
+    )
+
+
+def _clear_refresh_cookie(response: Response) -> None:
+    response.delete_cookie(
+        key=REFRESH_COOKIE_NAME,
+        httponly=True,
+        secure=settings.ENVIRONMENT.lower() == "production",
+        samesite="lax",
+        path=REFRESH_COOKIE_PATH,
+    )
 
 
 def slugify(name: str) -> str:
@@ -51,13 +77,13 @@ def _hash_token(raw_token: str) -> str:
 async def _issue_refresh_token(db: AsyncSession, user_id: str) -> str:
     raw_refresh = create_access_token(
         user_id,
-        expires_delta=timedelta(days=7),
+        expires_delta=timedelta(seconds=REFRESH_TOKEN_MAX_AGE_SECONDS),
     )
     record = RefreshToken(
         user_id=user_id,
         token_hash=_hash_token(raw_refresh),
         is_revoked=False,
-        expires_at=datetime.now(timezone.utc) + timedelta(days=7),
+        expires_at=datetime.now(timezone.utc) + timedelta(seconds=REFRESH_TOKEN_MAX_AGE_SECONDS),
     )
     db.add(record)
     return raw_refresh
@@ -93,6 +119,7 @@ class VerifyEmailRequest(BaseModel):
 async def signup(
     payload: UserCreate,
     request: Request,
+    response: Response,
     db: AsyncSession = Depends(get_db),
 ):
     normalized_email = str(payload.email).strip().lower()
@@ -155,9 +182,10 @@ async def signup(
     await db.refresh(user)
 
     token = create_access_token(user.id)
+    _set_refresh_cookie(response, refresh_tok)
     return Token(
         access_token=token,
-        refresh_token=refresh_tok,
+        refresh_token=None,
         token_type="bearer",
         user=UserOut.model_validate(user),
     )
@@ -167,6 +195,7 @@ async def signup(
 async def login(
     payload: dict,
     request: Request,
+    response: Response,
     db: AsyncSession = Depends(get_db),
 ):
     email = str(payload.get("email") or "").strip().lower()
@@ -200,48 +229,75 @@ async def login(
     await db.commit()
 
     token = create_access_token(user.id)
+    _set_refresh_cookie(response, refresh_tok)
     return Token(
         access_token=token,
-        refresh_token=refresh_tok,
+        refresh_token=None,
         token_type="bearer",
         user=UserOut.model_validate(user),
     )
 
 
 @router.post("/refresh", response_model=Token)
-async def refresh_token(payload: RefreshRequest, db: AsyncSession = Depends(get_db)):
-    decoded = decode_access_token(payload.refresh_token)
+async def refresh_token(
+    request: Request,
+    response: Response,
+    payload: Optional[RefreshRequest] = Body(default=None),
+    db: AsyncSession = Depends(get_db),
+):
+    raw_refresh = (
+        payload.refresh_token
+        if payload and payload.refresh_token
+        else request.cookies.get(REFRESH_COOKIE_NAME)
+    )
+    if not raw_refresh:
+        _clear_refresh_cookie(response)
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Refresh token is required",
+        )
+
+    decoded = decode_access_token(raw_refresh)
     if not decoded or not decoded.get("sub"):
+        _clear_refresh_cookie(response)
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
             detail="Invalid or expired refresh token",
         )
 
     user_id = decoded["sub"]
-    hashed = _hash_token(payload.refresh_token)
+    hashed = _hash_token(raw_refresh)
     rt_res = await db.execute(select(RefreshToken).where(RefreshToken.token_hash == hashed))
     stored_rt = rt_res.scalar_one_or_none()
-    if stored_rt is not None:
-        if stored_rt.is_revoked or stored_rt.expires_at < datetime.now(timezone.utc):
-            raise HTTPException(
-                status_code=status.HTTP_401_UNAUTHORIZED,
-                detail="Refresh token has been revoked or expired",
-            )
-        stored_rt.is_revoked = True
-        stored_rt.rotated_at = datetime.now(timezone.utc)
+    if stored_rt is None or stored_rt.user_id != user_id:
+        _clear_refresh_cookie(response)
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Refresh token is invalid",
+        )
+    if stored_rt.is_revoked or stored_rt.expires_at < datetime.now(timezone.utc):
+        _clear_refresh_cookie(response)
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Refresh token has been revoked or expired",
+        )
+    stored_rt.is_revoked = True
+    stored_rt.rotated_at = datetime.now(timezone.utc)
 
     result = await db.execute(select(User).where(User.id == user_id, User.is_active == True))
     user = result.scalar_one_or_none()
     if not user:
+        _clear_refresh_cookie(response)
         raise HTTPException(status_code=404, detail="User account not found")
 
     next_refresh = await _issue_refresh_token(db, user.id)
     await db.commit()
 
     new_token = create_access_token(user.id)
+    _set_refresh_cookie(response, next_refresh)
     return Token(
         access_token=new_token,
-        refresh_token=next_refresh,
+        refresh_token=None,
         token_type="bearer",
         user=UserOut.model_validate(user),
     )
@@ -249,15 +305,23 @@ async def refresh_token(payload: RefreshRequest, db: AsyncSession = Depends(get_
 
 @router.post("/logout")
 async def logout(
+    response: Response,
+    refresh_token: Optional[str] = Cookie(default=None),
     user: User = Depends(get_current_user),
     db: AsyncSession = Depends(get_db),
 ):
-    await db.execute(
-        update(RefreshToken)
-        .where(RefreshToken.user_id == user.id, RefreshToken.is_revoked == False)
-        .values(is_revoked=True, rotated_at=datetime.now(timezone.utc))
-    )
-    await db.commit()
+    if refresh_token:
+        await db.execute(
+            update(RefreshToken)
+            .where(
+                RefreshToken.user_id == user.id,
+                RefreshToken.token_hash == _hash_token(refresh_token),
+                RefreshToken.is_revoked == False,
+            )
+            .values(is_revoked=True, rotated_at=datetime.now(timezone.utc))
+        )
+        await db.commit()
+    _clear_refresh_cookie(response)
     return {"success": True, "message": "Successfully logged out session."}
 
 
@@ -269,6 +333,11 @@ async def get_me(
 ):
     result = await db.execute(select(Agency).where(Agency.id == member.agency_id))
     agency = result.scalar_one_or_none()
+    if agency is None:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Organization not found")
+
+    clients_count = await db.scalar(select(func.count(Client.id)).where(Client.agency_id == agency.id))
+    workflows_count = await db.scalar(select(func.count(Workflow.id)).where(Workflow.agency_id == agency.id))
 
     return {
         "user": {
@@ -280,17 +349,21 @@ async def get_me(
             "is_verified": bool(getattr(user, "is_verified", False)),
             "role": member.role,
             "agencyId": member.agency_id,
+            "createdAt": user.created_at.isoformat(),
         },
         "agency": {
-            "id": agency.id if agency else member.agency_id,
-            "name": agency.name if agency else "Organization",
-            "slug": agency.slug if agency else "org",
-            "tier": agency.tier if agency else "STARTER",
-            "contactEmail": agency.contact_email if agency else user.email,
-            "timezone": getattr(agency, "timezone", "UTC") if agency else "UTC",
-            "onboardingStep": getattr(agency, "onboarding_step", 1) if agency else 1,
-            "onboardingCompleted": bool(getattr(agency, "onboarding_completed", False)) if agency else False,
-            "onboardingData": getattr(agency, "onboarding_data", None) if agency else None,
+            "id": agency.id,
+            "name": agency.name,
+            "slug": agency.slug,
+            "tier": agency.tier,
+            "contactEmail": agency.contact_email,
+            "timezone": agency.timezone,
+            "onboardingStep": agency.onboarding_step,
+            "onboardingCompleted": bool(agency.onboarding_completed),
+            "onboardingData": agency.onboarding_data,
+            "createdAt": agency.created_at.isoformat(),
+            "clientsCount": clients_count or 0,
+            "workflowsCount": workflows_count or 0,
         },
     }
 

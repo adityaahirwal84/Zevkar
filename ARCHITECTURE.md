@@ -20,7 +20,7 @@ The technology stack is strictly locked per Master Build Instructions. No prohib
 | **Data Layer** | PostgreSQL 16+, SQLAlchemy 2.0 (asyncio), Alembic | ACID relational persistence, UUID primary keys, JSONB metadata, foreign keys, transaction rollbacks. |
 | **Worker / Queue** | Redis 7+, Celery 5.4+, Celery Beat | Asynchronous webhook ingestion, distributed lock coordination, scheduled heartbeat evaluation, retries. |
 | **AI Diagnosis** | Google Gemini API (`@google/genai` / `google-genai`) | Structured failure classification, root-cause derivation, and recovery recommendations. |
-| **Frontend** | Next.js 15+ (App Router), React 19, TypeScript | Server-Side Rendering (SSR), TanStack Query v5, Tailwind CSS, shadcn/ui, Recharts. |
+| **Frontend** | Vite + React 19, TypeScript (root UI); Nginx production serving | Client-side Zevkar UI built to static assets; Nginx proxies API and health requests to FastAPI. The Next.js app under `frontend/` is retained as a backup and is not used by Compose. |
 | **Observability** | Prometheus, Grafana, OpenTelemetry | Counter/gauge scraping (`/metrics`), latency histograms, alert rules, health checks. |
 | **Testing** | Pytest, HTTPX AsyncClient, Playwright | Unit, integration, schema validation, and end-to-end browser workflows. |
 | **Deployment** | Docker, Docker Compose | Containerized multi-service orchestration (frontend, backend, worker, beat, postgres, redis, prometheus, grafana). |
@@ -86,7 +86,10 @@ The technology stack is strictly locked per Master Build Instructions. No prohib
 
 ```
 zevkar/
-├── frontend/                     # Next.js 15+ App Router application
+├── src/                           # Primary root Vite + React Zevkar UI
+├── Dockerfile.frontend            # Vite production build served by Nginx
+├── nginx.conf.template            # SPA fallback and FastAPI reverse proxy
+├── frontend/                     # Retained Next.js backup (not used by Compose)
 │   ├── app/
 │   │   ├── (auth)/               # Login, Signup, Forgot Password routes
 │   │   ├── (dashboard)/          # Authenticated agency views
